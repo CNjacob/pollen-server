@@ -2,34 +2,141 @@ import Fluent
 import Vapor
 
 final class Recipe: Model, Content {
+    struct Public: Content {
+        let recipeId: Int
+        let classid: Int
+        let name: String
+        let peoplenum: String
+        let preparetime: String
+        let cookingtime: String
+        let content: String
+        let pic: String
+        let tag: String
+        let material: [Material.Public]
+        let process: [Process.Public]
+    }
+    
     static let schema = "recipes"
     
-    //    "id": 1,
-    //    "name": "柠檬戚风蛋糕",
-    //    "tags": "健脑益智,保肝,动脉硬化,防癌,延年益寿,美容护肤,镇静助眠,美容养颜,益智,润肺生津,润肺止咳,降血压,抗衰老",
-    //    "method": "烘焙",
-    //    "imageUrl": "http://s1.st.meishij.net/r/141/154/4351141/a4351141_151783971393229.jpg",
-    //    "level": "初级入门",
-    //    "peopleNum": "3人份",
-    //    "taste": "甜味",
-    //    "prepareTime": "5分钟",
-    //    "cookTime": "<60分钟",
-    //    "isFeatured": true
+    @ID(key: "id")
+    var id: UUID?
     
-    @ID(key: .id)
-    var id: Int?
+    @Field(key: "recipeId")
+    var recipeId: Int
+    
+    @Field(key: "classid")
+    var classid: Int
     
     @Field(key: "name")
     var name: String
     
-    @Field(key: "method")
-    var method: String;
+    @Field(key: "peoplenum")
+    var peoplenum: String
     
+    @Field(key: "preparetime")
+    var preparetime: String
+    
+    @Field(key: "cookingtime")
+    var cookingtime: String
+    
+    @Field(key: "content")
+    var content: String
+    
+    @Field(key: "pic")
+    var pic: String
+    
+    @Field(key: "tag")
+    var tag: String
+    
+    @Children(for: \.$recipe)
+    var material: [Material]
+    
+    @Children(for: \.$recipe)
+    var process: [Process]
+        
+    @Siblings(through: UserRecipePivot.self, from: \.$recipe, to: \.$user)
+    public var users: [User]
     
     init() { }
     
-    init(id: Int? = nil, name: String) {
+    init(id: UUID? = nil,
+         recipeId: Int,
+         classid: Int,
+         name: String,
+         peoplenum: String,
+         preparetime: String,
+         cookingtime: String,
+         content: String,
+         pic: String,
+         tag: String) {
+        
         self.id = id
+        self.recipeId = recipeId
+        self.classid = classid
         self.name = name
+        self.peoplenum = peoplenum
+        self.preparetime = preparetime
+        self.cookingtime = cookingtime
+        self.content = content
+        self.pic = pic
+        self.tag = tag
+    }
+}
+
+extension Recipe {
+    static func create(from recipeInfo: RecipeInfo) throws -> Recipe {
+        Recipe(recipeId: recipeInfo.recipeId,
+               classid: recipeInfo.classid,
+               name: recipeInfo.name,
+               peoplenum: recipeInfo.peoplenum,
+               preparetime: recipeInfo.preparetime,
+               cookingtime: recipeInfo.cookingtime,
+               content: recipeInfo.content,
+               pic: recipeInfo.pic,
+               tag: recipeInfo.tag)
+    }
+    
+    func asPublic() throws -> Public {
+        Public(recipeId: recipeId,
+               classid: classid,
+               name: name,
+               peoplenum: peoplenum,
+               preparetime: preparetime,
+               cookingtime: cookingtime,
+               content: content,
+               pic: pic,
+               tag: tag,
+               material: material.map { try! $0.asPublic() },
+               process: process.map { try! $0.asPublic() })
+    }
+    
+    func createMaterial(publics: [Material.Public]) throws -> [Material] {
+        var materialList: [Material] = []
+        for publicMaterial in publics {
+            let material = try Material(recipeId: requireID(),
+                                        mname: publicMaterial.mname,
+                                        type: publicMaterial.type,
+                                        amount: publicMaterial.amount)
+            materialList.append(material)
+        }
+        return materialList
+    }
+    
+    func createProcess(publics: [Process.Public]) throws -> [Process] {
+        var processList: [Process] = []
+        for publicProcess in publics {
+            let process = try Process(recipeId: requireID(),
+                                      pcontent: publicProcess.pcontent,
+                                      pic: publicProcess.pic)
+            processList.append(process)
+        }
+        return processList
+    }
+        
+    func loadUsers(req: Request) -> EventLoopFuture<[User.Public]> {
+        self.$users.load(on: req.db)
+            .flatMapThrowing {
+                try self.users.map { try $0.asPublic() }
+            }
     }
 }

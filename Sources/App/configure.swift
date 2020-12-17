@@ -21,7 +21,11 @@ public func configure(_ app: Application) throws {
         ),
         as: .mysql)
 
+    app.migrations.add(CreateRecipes())
+    app.migrations.add(CreateMaterial())
+    app.migrations.add(CreateProcess())
     app.migrations.add(CreateUsers())
+    app.migrations.add(CreateUserRecipePivot())
     app.migrations.add(CreateTokens())
 
     app.views.use(.leaf)

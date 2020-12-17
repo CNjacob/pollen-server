@@ -28,6 +28,19 @@ struct UserController: RouteCollection {
         
         let passwordProtected = usersRoute.grouped(User.authenticator())
         passwordProtected.post("login", use: login)
+        
+        tokenProtected.get("recipes", use: recipes)
+    }
+    
+    fileprivate func recipes(req: Request) throws -> EventLoopFuture<[Recipe.Public]> {
+        let user = try req.auth.require(User.self)
+        return user.$recipes.query(on: req.db)
+            .with(\.$material)
+            .with(\.$process)
+            .all()
+            .flatMapThrowing { recipes in
+                try recipes.map { try $0.asPublic() }
+            }
     }
     
     fileprivate func create(req: Request) throws -> EventLoopFuture<NewSession> {

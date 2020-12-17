@@ -26,6 +26,9 @@ final class User: Model {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
     
+    @Siblings(through: UserRecipePivot.self, from: \.$user, to: \.$recipe)
+    var recipes: [Recipe]
+    
     init() {}
     
     init(id: UUID? = nil, username: String, passwordHash: String) {
